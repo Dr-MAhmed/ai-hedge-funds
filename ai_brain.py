@@ -1,17 +1,32 @@
 # ai_brain.py
 
 import json
-import requests
 
-from config import GROQ_API_KEY, GROQ_MODEL
+import g4f
+
+from config import G4F_MODEL, G4F_PROVIDER_NAME
 
 
-GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+def _extract_json_from_text(text):
+    """Pull the first JSON object from a raw LLM response."""
+    if not isinstance(text, str):
+        raise ValueError("AI response is not a string.")
+
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.replace("```json", "").replace("```", "").strip()
+
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start : end + 1]
+
+    return text
 
 
 def get_ai_decision(market_data, symbol):
     """
-    Send multi-timeframe market data to Groq AI and return
+    Send multi-timeframe market data to a free G4F model and return
     a structured trading decision.
 
     Args:
@@ -76,74 +91,43 @@ Analyze the following market data for {symbol}.
 Return ONLY the required JSON decision.
 """
 
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json",
+    provider_map = {
+        "Gemini": g4f.Provider.Gemini,
+        "OpenRouterFree": g4f.Provider.OpenRouterFree,
+        "Groq": g4f.Provider.Groq,
+        "DeepSeek": g4f.Provider.DeepSeek,
     }
 
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": [
-            {
-                "role": "system",
-                "content": system_prompt,
-            },
-            {
-                "role": "user",
-                "content": user_prompt,
-            },
-        ],
-        "temperature": 0.1,
-        "max_tokens": 500,
-    }
+    provider = provider_map.get(G4F_PROVIDER_NAME, g4f.Provider.Gemini)
 
     try:
-        response = requests.post(
-            GROQ_API_URL,
-            headers=headers,
-            json=payload,
-            timeout=30,
+        ai_content = g4f.ChatCompletion.create(
+            model=G4F_MODEL,
+            provider=provider,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            stream=False,
         )
 
-        if response.status_code != 200:
-            error_text = response.text[:500]
-            print(f"[ERROR] Groq API returned {response.status_code}: {error_text}")
-            response.raise_for_status()
+        if isinstance(ai_content, list):
+            ai_content = "".join(str(part) for part in ai_content)
 
-        response_data = response.json()
+        clean_text = _extract_json_from_text(ai_content)
+        decision = json.loads(clean_text)
 
-        ai_content = response_data["choices"][0]["message"]["content"]
-
-        # Parse the AI response as JSON
-        decision = json.loads(ai_content)
-
-        # Validate required fields
-        required_fields = {
-            "signal",
-            "confidence_score",
-            "logic",
-        }
-
+        required_fields = {"signal", "confidence_score", "logic"}
         if not required_fields.issubset(decision.keys()):
-            raise ValueError(
-                "AI response is missing required fields."
-            )
+            raise ValueError("AI response is missing required fields.")
 
-        # Validate signal
         if decision["signal"] not in {"BUY", "SELL", "HOLD"}:
-            raise ValueError(
-                f"Invalid signal: {decision['signal']}"
-            )
+            raise ValueError(f"Invalid signal: {decision['signal']}")
 
-        # Validate confidence score
         confidence = decision["confidence_score"]
-
         if not isinstance(confidence, int) or not 0 <= confidence <= 100:
-            raise ValueError(
-                "confidence_score must be an integer between 0 and 100."
-            )
+            raise ValueError("confidence_score must be an integer between 0 and 100.")
 
-        # Validate logic
         if not isinstance(decision["logic"], str):
             raise ValueError("logic must be a string.")
 
@@ -153,26 +137,10 @@ Return ONLY the required JSON decision.
             "logic": decision["logic"],
         }
 
-    except requests.exceptions.RequestException as e:
-        print(f"[ERROR] Network error calling Groq API: {e}")
+    except Exception as e:
+        print(f"[ERROR] G4F AI decision failed: {type(e).__name__}: {e}")
         return {
             "signal": "HOLD",
             "confidence_score": 0,
-            "logic": "Network error - unable to reach Groq API",
-        }
-
-    except json.JSONDecodeError as e:
-        print(f"[ERROR] Invalid JSON from Groq API: {e}")
-        return {
-            "signal": "HOLD",
-            "confidence_score": 0,
-            "logic": "AI parsing error - response was not valid JSON",
-        }
-
-    except ValueError as e:
-        print(f"[ERROR] Validation error: {e}")
-        return {
-            "signal": "HOLD",
-            "confidence_score": 0,
-            "logic": f"AI validation failed: {str(e)[:50]}",
+            "logic": f"AI error: {type(e).__name__} - {str(e)[:60]}",
         }
