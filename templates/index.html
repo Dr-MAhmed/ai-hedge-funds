@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Hedge Fund Engine</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        graphite: "#0B120E",
+                        lime: "#75E063"
+                    }
+                }
+            }
+        };
+    </script>
+
+    <style>
+    html,
+    body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0B120E;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+
+    #neuralCanvas {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 0;
+    }
+
+    .glass {
+        background: rgba(11, 18, 14, 0.78);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        border: 1px solid rgba(117, 224, 99, 0.14);
+    }
+
+    .lime-glow {
+        box-shadow:
+            0 0 20px rgba(117, 224, 99, 0.12),
+            inset 0 0 20px rgba(117, 224, 99, 0.025);
+    }
+
+    .status-dot {
+        box-shadow: 0 0 12px rgba(117, 224, 99, 0.9);
+    }
+
+    .feed-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .feed-scroll::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .feed-scroll::-webkit-scrollbar-thumb {
+        background: rgba(117, 224, 99, 0.25);
+        border-radius: 999px;
+    }
+
+    .trade-entry {
+        animation: feedIn 0.35s ease-out;
+    }
+
+    @keyframes feedIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .pulse {
+        animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.45;
+        }
+    }
+    </style>
+
+</head>
+
+<body class="text-white">
+
+    <!-- Full-screen neural network background -->
+    <canvas id="neuralCanvas"></canvas>
+
+    <!-- Main application -->
+    <div class="relative z-10 min-h-screen">
+
+        <!-- Header -->
+        <header class="flex items-center justify-between px-6 py-5 md:px-10">
+
+            <div class="flex items-center gap-4">
+
+                <div class="flex h-10 w-10 items-center justify-center rounded-xl border border-lime/30 bg-lime/5">
+                    <span class="text-lg font-black text-lime">AI</span>
+                </div>
+
+                <div>
+                    <h1 class="text-sm font-bold tracking-[0.25em] text-white">
+                        HEDGE FUND ENGINE
+                    </h1>
+
+                    <div class="mt-1 flex items-center gap-2">
+                        <span
+                            id="statusDot"
+                            class="status-dot h-2 w-2 rounded-full bg-zinc-600">
+                        </span>
+
+                        <span
+                            id="engineStatus"
+                            class="text-[10px] uppercase tracking-[0.2em] text-zinc-400">
+                            Engine Offline
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+
+                <!-- Interval -->
+                <select
+                    id="intervalSelect"
+                    class="glass rounded-lg px-4 py-2.5 text-xs font-semibold text-zinc-300 outline-none transition hover:border-lime/40 focus:border-lime/50"
+            >
+                <option value="30">30s</option>
+                <option value="3600">1hr</option>
+            </select>
+
+            <!-- Start / Stop -->
+            <button
+                id="engineButton"
+                onclick="toggleEngine()"
+                class="rounded-lg border border-lime/50 bg-lime/10 px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-lime transition hover:bg-lime/20 hover:shadow-[0_0_25px_rgba(117,224,99,0.15)]"
+            >
+                Initialize Engine
+            </button>
+
+        </div>
+    </header>
+
+
+    <!-- Right-side floating panel -->
+    <aside
+        class="glass lime-glow absolute right-5 top-24 flex w-[calc(100%-2.5rem)] max-w-[390px] flex-col overflow-hidden rounded-2xl md:right-8 md:w-[390px]"
+    >
+
+        <!-- Equity -->
+        <section class="border-b border-lime/10 p-5">
+
+            <div class="mb-2 flex items-center justify-between">
+                <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    Live Equity
+                </span>
+
+                <span class="pulse text-[9px] uppercase tracking-wider text-lime">
+                    Live
+                </span>
+            </div>
+
+            <div
+                id="equity"
+                class="text-3xl font-light tracking-tight text-white"
+            >
+                $0.00
+            </div>
+
+        </section>
+
+
+        <!-- AI Logic -->
+        <section class="border-b border-lime/10 p-5">
+
+            <div class="mb-3 flex items-center justify-between">
+                <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    AI Logic
+                </span>
+
+                <span
+                    id="confidence"
+                    class="rounded-full bg-lime/10 px-2.5 py-1 text-[10px] font-bold text-lime"
+                >
+                    0%
+                </span>
+            </div>
+
+            <p
+                id="aiLogic"
+                class="text-sm leading-6 text-zinc-300"
+            >
+                Waiting for engine initialization...
+            </p>
+
+        </section>
+
+
+        <!-- Confidence -->
+        <section class="border-b border-lime/10 p-5">
+
+            <div class="mb-2 flex items-center justify-between">
+                <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    Confidence Score
+                </span>
+
+                <span
+                    id="confidenceValue"
+                    class="text-sm font-bold text-lime"
+                >
+                    0
+                </span>
+            </div>
+
+            <div class="h-1.5 overflow-hidden rounded-full bg-white/5">
+                <div
+                    id="confidenceBar"
+                    class="h-full rounded-full bg-lime transition-all duration-500"
+                    style="width: 0%"
+                ></div>
+            </div>
+
+        </section>
+
+
+        <!-- Execution Feed -->
+        <section class="flex min-h-0 flex-col">
+
+            <div class="flex items-center justify-between border-b border-lime/10 px-5 py-4">
+
+                <span class="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+                    Live Execution Feed
+                </span>
+
+                <span
+                    id="tradeCount"
+                    class="text-[10px] text-zinc-600"
+                >
+                    0 trades
+                </span>
+
+            </div>
+
+            <div
+                id="executionFeed"
+                class="feed-scroll max-h-[350px] overflow-y-auto p-3"
+            >
+                <div
+                    id="emptyFeed"
+                    class="px-3 py-8 text-center text-xs text-zinc-600"
+                >
+                    No executions yet.
+                </div>
+            </div>
+
+        </section>
+
+    </aside>
+
+</div>
+
+
+<script>
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    let botState = {
+        is_running: false,
+        interval: 30,
+        equity: 0,
+        last_logic: "",
+        last_confidence: 0,
+        trade_history: []
+    };
+
+    let knownTrades = new Set();
+
+    // Canvas neural-network nodes
+    let nodes = [];
+
+    const canvas = document.getElementById("neuralCanvas");
+    const ctx = canvas.getContext("2d");
+
+
+    // ============================================================
+    // ASSET COLORS
+    // ============================================================
+
+    const assetColors = {
+        EURUSDm: "#4FC3F7",
+        GBPUSDm: "#BA68C8",
+        BTCUSDm: "#FFB74D",
+        XAUUSDm: "#FFD54F"
+    };
+
+    function getAssetColor(asset) {
+        return assetColors[asset] || "#75E063";
+    }
+
+
+    // ============================================================
+    // CANVAS SETUP
+    // ============================================================
+
+    function resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+
+    // ============================================================
+    // BACKGROUND NEURAL NETWORK
+    // ============================================================
+
+    function createBackgroundNodes() {
+        nodes = [];
+
+        const count = Math.min(
+            70,
+            Math.floor((window.innerWidth * window.innerHeight) / 18000)
+        );
+
+        for (let i = 0; i < count; i++) {
+            nodes.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                vx: (Math.random() - 0.5) * 0.12,
+                vy: (Math.random() - 0.5) * 0.12,
+                radius: Math.random() * 1.2 + 0.4
+            });
+        }
+    }
+
+    createBackgroundNodes();
+
+
+    // ============================================================
+    // TRADE CIRCLES
+    // ============================================================
+
+    function spawnTradeCircle(trade) {
+
+        const margin = 100;
+
+        nodes.push({
+            x: Math.random() * Math.max(
+                1,
+                window.innerWidth - margin * 2
+            ) + margin,
+
+            y: Math.random() * Math.max(
+                1,
+                window.innerHeight - margin * 2
+            ) + margin,
+
+            vx: (Math.random() - 0.5) * 0.25,
+            vy: (Math.random() - 0.5) * 0.25,
+
+            radius: 5,
+            tradeNode: true,
+
+            asset: trade.asset,
+            signal: trade.signal,
+
+            color: getAssetColor(trade.asset),
+
+            birth: Date.now(),
+            life: 100000
+        });
+    }
+
+
+    // ============================================================
+    // DRAW CANVAS
+    // ============================================================
+
+    function drawCanvas() {
+
+        ctx.clearRect(
+            0,
+            0,
+            window.innerWidth,
+            window.innerHeight
+        );
+
+        const now = Date.now();
+
+
+        // Move nodes
+        nodes.forEach(node => {
+
+            node.x += node.vx;
+            node.y += node.vy;
+
+            if (node.x < 0 || node.x > window.innerWidth) {
+                node.vx *= -1;
+            }
+
+            if (node.y < 0 || node.y > window.innerHeight) {
+                node.vy *= -1;
+            }
+
+        });
+
+
+        // Connecting lines
+        for (let i = 0; i < nodes.length; i++) {
+
+            for (let j = i + 1; j < nodes.length; j++) {
+
+                const a = nodes[i];
+                const b = nodes[j];
+
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+
+                const distance = Math.sqrt(
+                    dx * dx + dy * dy
+                );
+
+                const maxDistance =
+                    a.tradeNode || b.tradeNode
+                        ? 230
+                        : 135;
+
+                if (distance < maxDistance) {
+
+                    const opacity =
+                        (1 - distance / maxDistance) *
+                        (a.tradeNode || b.tradeNode ? 0.12 : 0.045);
+
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+
+                    ctx.strokeStyle =
+                        `rgba(117, 224, 99, ${opacity})`;
+
+                    ctx.lineWidth =
+                        a.tradeNode || b.tradeNode
+                            ? 0.8
+                            : 0.5;
+
+                    ctx.stroke();
+                }
+            }
+        }
+
+
+        // Draw nodes
+        nodes.forEach(node => {
+
+            if (node.tradeNode) {
+
+                const age = now - node.birth;
+                const fade = Math.max(
+                    0,
+                    1 - age / node.life
+                );
+
+                // Glow
+                const gradient = ctx.createRadialGradient(
+                    node.x,
+                    node.y,
+                    0,
+                    node.x,
+                    node.y,
+                    30
+                );
+
+                gradient.addColorStop(
+                    0,
+                    hexToRgba(node.color, 0.45 * fade)
+                );
+
+                gradient.addColorStop(
+                    1,
+                    hexToRgba(node.color, 0)
+                );
+
+                ctx.beginPath();
+                ctx.arc(
+                    node.x,
+                    node.y,
+                    30,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fillStyle = gradient;
+                ctx.fill();
+
+
+                // Main trade circle
+                ctx.beginPath();
+                ctx.arc(
+                    node.x,
+                    node.y,
+                    node.radius,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fillStyle = hexToRgba(
+                    node.color,
+                    fade
+                );
+
+                ctx.shadowBlur = 18;
+                ctx.shadowColor = node.color;
+
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+            } else {
+
+                ctx.beginPath();
+
+                ctx.arc(
+                    node.x,
+                    node.y,
+                    node.radius,
+                    0,
+                    Math.PI * 2
+                );
+
+                ctx.fillStyle =
+                    "rgba(117, 224, 99, 0.18)";
+
+                ctx.fill();
+            }
+        });
+
+
+        requestAnimationFrame(drawCanvas);
+    }
+
+    drawCanvas();
+
+
+    // ============================================================
+    // HEX TO RGBA
+    // ============================================================
+
+    function hexToRgba(hex, alpha) {
+
+        const value = hex.replace("#", "");
+
+        const r = parseInt(
+            value.substring(0, 2),
+            16
+        );
+
+        const g = parseInt(
+            value.substring(2, 4),
+            16
+        );
+
+        const b = parseInt(
+            value.substring(4, 6),
+            16
+        );
+
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+
+
+    // ============================================================
+    // FORMAT EQUITY
+    // ============================================================
+
+    function formatEquity(value) {
+
+        const number = Number(value) || 0;
+
+        return new Intl.NumberFormat(
+            "en-US",
+            {
+                style: "currency",
+                currency: "USD",
+                minimumFractionDigits: 2
+            }
+        ).format(number);
+    }
+
+
+    // ============================================================
+    // UPDATE DOM
+    // ============================================================
+
+    function updateDashboard(state) {
+
+        botState = state;
+
+        // Equity
+        document.getElementById("equity").textContent =
+            formatEquity(state.equity);
+
+
+        // AI Logic
+        document.getElementById("aiLogic").textContent =
+            state.last_logic ||
+            "Waiting for AI analysis...";
+
+
+        // Confidence
+        const confidence =
+            Number(state.last_confidence) || 0;
+
+        document.getElementById("confidence").textContent =
+            `${confidence}%`;
+
+        document.getElementById("confidenceValue").textContent =
+            confidence;
+
+        document.getElementById("confidenceBar").style.width =
+            `${Math.min(100, Math.max(0, confidence))}%`;
+
+
+        // Engine status
+        const statusText =
+            document.getElementById("engineStatus");
+
+        const statusDot =
+            document.getElementById("statusDot");
+
+        const button =
+            document.getElementById("engineButton");
+
+        if (state.is_running) {
+
+            statusText.textContent =
+                "Engine Running";
+
+            statusText.className =
+                "text-[10px] uppercase tracking-[0.2em] text-lime";
+
+            statusDot.className =
+                "status-dot h-2 w-2 rounded-full bg-lime";
+
+            button.textContent =
+                "Stop Engine";
+
+        } else {
+
+            statusText.textContent =
+                "Engine Offline";
+
+            statusText.className =
+                "text-[10px] uppercase tracking-[0.2em] text-zinc-400";
+
+            statusDot.className =
+                "h-2 w-2 rounded-full bg-zinc-600";
+
+            button.textContent =
+                "Initialize Engine";
+        }
+
+
+        // Process trade history
+        if (Array.isArray(state.trade_history)) {
+
+            state.trade_history.forEach(
+                (trade, index) => {
+
+                    const tradeId =
+                        `${trade.time}-${trade.asset}-${trade.signal}-${index}`;
+
+                    if (!knownTrades.has(tradeId)) {
+
+                        knownTrades.add(tradeId);
+
+                        addTradeToFeed(trade);
+
+                        spawnTradeCircle(trade);
+                    }
+                }
+            );
+
+            document.getElementById("tradeCount")
+                .textContent =
+                `${state.trade_history.length} ${
+                    state.trade_history.length === 1
+                        ? "trade"
+                        : "trades"
+                }`;
+        }
+    }
+
+
+    // ============================================================
+    // EXECUTION FEED
+    // ============================================================
+
+    function addTradeToFeed(trade) {
+
+        const feed =
+            document.getElementById("executionFeed");
+
+        const empty =
+            document.getElementById("emptyFeed");
+
+        if (empty) {
+            empty.remove();
+        }
+
+        const color =
+            getAssetColor(trade.asset);
+
+        const entry =
+            document.createElement("div");
+
+        entry.className =
+            "trade-entry mb-2 rounded-xl border border-white/5 bg-white/[0.025] p-3";
+
+        const time =
+            trade.time
+                ? new Date(trade.time)
+                    .toLocaleTimeString()
+                : "--:--:--";
+
+        const signalClass =
+            trade.signal === "BUY"
+                ? "text-lime"
+                : "text-red-400";
+
+        entry.innerHTML = `
+            <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <span
+                        class="h-2 w-2 rounded-full"
+                        style="
+                            background:${color};
+                            box-shadow:0 0 10px ${color};
+                        "
+                    ></span>
+
+                    <span class="text-xs font-bold text-white">
+                        ${escapeHtml(trade.asset)}
+                    </span>
+                </div>
+
+                <span class="text-[9px] text-zinc-600">
+                    ${escapeHtml(time)}
+                </span>
+            </div>
+
+            <div class="mt-2 flex items-center justify-between">
+                <span class="text-[11px] font-bold ${signalClass}">
+                    ${escapeHtml(trade.signal)}
+                </span>
+
+                <span class="text-[9px] uppercase tracking-wider text-zinc-600">
+                    EXECUTED
+                </span>
+            </div>
+
+            <p class="mt-2 text-[10px] leading-4 text-zinc-500">
+                ${escapeHtml(trade.logic || "")}
+            </p>
+        `;
+
+        feed.prepend(entry);
+    }
+
+
+    // ============================================================
+    // ESCAPE HTML
+    // ============================================================
+
+    function escapeHtml(value) {
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            String(value ?? "");
+
+        return div.innerHTML;
+    }
+
+
+    // ============================================================
+    // BACKEND POLLING
+    // ============================================================
+
+    async function pollBackend() {
+
+        try {
+
+            const response =
+                await fetch("/api/status", {
+                    method: "GET",
+                    cache: "no-store"
+                });
+
+            if (!response.ok) {
+                throw new Error(
+                    `Backend returned ${response.status}`
+                );
+            }
+
+            const state =
+                await response.json();
+
+            updateDashboard(state);
+
+        } catch (error) {
+
+            console.error(
+                "Backend polling failed:",
+                error
+            );
+        }
+    }
+
+
+    // Poll every 3 seconds
+    pollBackend();
+
+    setInterval(
+        pollBackend,
+        3000
+    );
+
+
+    // ============================================================
+    // START / STOP ENGINE
+    // ============================================================
+
+    async function toggleEngine() {
+
+        const shouldStart =
+            !botState.is_running;
+
+        const interval =
+            Number(
+                document.getElementById(
+                    "intervalSelect"
+                ).value
+            );
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/control",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            action:
+                                shouldStart
+                                    ? "start"
+                                    : "stop",
+
+                            interval:
+                                interval
+                        })
+                    }
+                );
+
+            if (!response.ok) {
+                throw new Error(
+                    `Control request failed: ${response.status}`
+                );
+            }
+
+            const result =
+                await response.json();
+
+            if (result.state) {
+                updateDashboard(
+                    result.state
+                );
+            }
+
+        } catch (error) {
+
+            console.error(
+                "Failed to control engine:",
+                error
+            );
+
+            alert(
+                "Unable to communicate with the trading engine."
+            );
+        }
+    }
+
+
+    // ============================================================
+    // INTERVAL CHANGE
+    // ============================================================
+
+    document
+        .getElementById("intervalSelect")
+        .addEventListener(
+            "change",
+            async function () {
+
+                const interval =
+                    Number(this.value);
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/api/control",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+                                    interval
+                                })
+                            }
+                        );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `Interval update failed: ${response.status}`
+                        );
+                    }
+
+                    const result =
+                        await response.json();
+
+                    if (result.state) {
+                        updateDashboard(
+                            result.state
+                        );
+                    }
+
+                } catch (error) {
+
+                    console.error(
+                        "Failed to update interval:",
+                        error
+                    );
+                }
+            }
+        );
+    </script>
+
+</body>
+</html>
