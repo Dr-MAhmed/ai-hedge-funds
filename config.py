@@ -3,8 +3,7 @@
 # Symbols to trade
 SYMBOLS = [
     "XAUUSDm",
-    "EURUSDm",
-    "GBPUSDm",
+    "USTECm",
     "BTCUSDm",
 ]
 
