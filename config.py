@@ -4,7 +4,6 @@
 SYMBOLS = [
     "XAUUSDm",
     "USTECm",
-    "BTCUSDm",
 ]
 
 # Risk management
