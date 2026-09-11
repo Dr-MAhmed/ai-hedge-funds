@@ -1,0 +1,156 @@
+[
+  {
+    "ticket": 2179351716,
+    "order": 2357164308,
+    "symbol": "NZDUSDm",
+    "side": "SELL",
+    "entry_price": 0.5813200000000001,
+    "sl": 0.5836,
+    "tp": 0.57926,
+    "volume": 0.01,
+    "risk_percent": 1.0,
+    "market_context": {
+      "h1_data": {
+        "ema_200": 0.585814,
+        "rsi": 42.27,
+        "atr": 0.000833,
+        "relative_volume": 0.32,
+        "tick_volume": 422,
+        "price_trend": {
+          "trend_direction": "DOWN",
+          "price_change_pct": -0.1323,
+          "recent_high": 0.58284,
+          "recent_low": 0.5802,
+          "bar_count": 10
+        }
+      },
+      "daily_data": {
+        "ema_200": 0.583085,
+        "rsi": 36.4,
+        "atr": 0.003963,
+        "relative_volume": 1.29,
+        "tick_volume": 25360,
+        "price_trend": {
+          "trend_direction": "DOWN",
+          "price_change_pct": -1.339,
+          "recent_high": 0.59283,
+          "recent_low": 0.57926,
+          "bar_count": 10
+        }
+      },
+      "correlated_prices": {
+        "EURUSDm": {
+          "bid": 1.15955,
+          "ask": 1.15963
+        },
+        "GBPUSDm": {
+          "bid": 1.35246,
+          "ask": 1.35256
+        },
+        "USDJPYm": {
+          "bid": 153.704,
+          "ask": 153.714
+        },
+        "USDCHFm": {
+          "bid": 0.81659,
+          "ask": 0.81672
+        },
+        "USDCADm": {
+          "bid": 1.38622,
+          "ask": 1.38636
+        },
+        "AUDUSDm": {
+          "bid": 0.71723,
+          "ask": 0.71732
+        },
+        "BTCUSDm": {
+          "bid": 77126.47,
+          "ask": 77136.47
+        },
+        "XAUUSDm": {
+          "bid": 4351.33,
+          "ask": 4351.59
+        }
+      }
+    },
+    "created_at": "2026-09-11T23:28:37.824301",
+    "status": "CONFIRMED"
+  },
+  {
+    "ticket": 2179379594,
+    "order": 2357196382,
+    "symbol": "USDCHFm",
+    "side": "BUY",
+    "entry_price": 0.81677,
+    "sl": 0.8125,
+    "tp": 0.823,
+    "volume": 0.01,
+    "risk_percent": 1.0,
+    "market_context": {
+      "h1_data": {
+        "ema_200": 0.810242,
+        "rsi": 72.23,
+        "atr": 0.001054,
+        "relative_volume": 0.46,
+        "tick_volume": 744,
+        "price_trend": {
+          "trend_direction": "UP",
+          "price_change_pct": 0.2357,
+          "recent_high": 0.81698,
+          "recent_low": 0.8137,
+          "bar_count": 10
+        }
+      },
+      "daily_data": {
+        "ema_200": 0.800305,
+        "rsi": 62.84,
+        "atr": 0.004546,
+        "relative_volume": 1.29,
+        "tick_volume": 31679,
+        "price_trend": {
+          "trend_direction": "UP",
+          "price_change_pct": 0.5888,
+          "recent_high": 0.81698,
+          "recent_low": 0.80516,
+          "bar_count": 10
+        }
+      },
+      "correlated_prices": {
+        "EURUSDm": {
+          "bid": 1.1594,
+          "ask": 1.15948
+        },
+        "GBPUSDm": {
+          "bid": 1.35221,
+          "ask": 1.3523100000000001
+        },
+        "USDJPYm": {
+          "bid": 153.704,
+          "ask": 153.714
+        },
+        "USDCADm": {
+          "bid": 1.38653,
+          "ask": 1.38667
+        },
+        "AUDUSDm": {
+          "bid": 0.7171,
+          "ask": 0.71719
+        },
+        "NZDUSDm": {
+          "bid": 0.58125,
+          "ask": 0.58139
+        },
+        "BTCUSDm": {
+          "bid": 77243.53,
+          "ask": 77253.53
+        },
+        "XAUUSDm": {
+          "bid": 4348.924,
+          "ask": 4349.184
+        }
+      }
+    },
+    "created_at": "2026-09-11T23:36:26.454285",
+    "status": "CONFIRMED"
+  }
+]

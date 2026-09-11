@@ -1,6 +1,9 @@
-MetaTrader5
-requests
 fastapi
-uvicorn
-jinja2
+uvicorn[standard]
 pydantic
+jinja2
+python-dotenv
+MetaTrader5
+pandas
+requests
+groq
